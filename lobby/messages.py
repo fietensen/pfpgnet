@@ -1,0 +1,10 @@
+VERSION = (0, 0, 1)
+
+class NetMessage:
+    CLIENT_HELLO = 0
+    CLIENT_SEARCH = 1
+    CLIENT_DISCONNECT = 2
+
+    SERVER_ACK = 3
+    SERVER_FOUND = 4
+    SERVER_DISCONNECT = 3
