@@ -14,7 +14,7 @@ class ServerClient(threading.Thread):
         self.__onclose = onclose
         self.__active = False
 
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, daemon=True, **kwargs)
 
 
     def sendpkt(self, pkt_type:int, pkt_data:bytes):
@@ -27,6 +27,7 @@ class ServerClient(threading.Thread):
 
 
     def close(self):
+        print("CLOSE")
         self.__active = False
         self.__connection.close()
 
@@ -39,9 +40,10 @@ class ServerClient(threading.Thread):
         while not len(buffer) == count:
             try:
                 buffer += self.__connection.recv(count-len(buffer))
-            except socket.error:
-                self.__onclose(self.__address, self.__port)
-                self.close()
+            except Exception as e:
+                if self.__active:
+                    self.__onclose(self.__address, self.__port)
+                    self.close()
             
         return buffer
 

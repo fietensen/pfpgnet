@@ -17,7 +17,6 @@ class VersionMismatchException(Exception):
 class LobbyClient:
     def __init__(self, address:str, port:int, debug:bool=False, cid:str=""):
         self.__server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.__server.settimeout(10)
         self.__address = address
         self.__port = port
         self.__cid = cid
@@ -70,6 +69,7 @@ class LobbyClient:
     def reset_connection(self):
         if self.__server:
             try:
+                print("CLOSE")
                 self.__server.close()
             except socket.error:
                 pass
@@ -102,7 +102,7 @@ class LobbyClient:
         while not len(buffer) == count:
             try:
                 buffer += self.__server.recv(count-len(buffer))
-            except socket.error:
+            except socket.error as e:
                 self.__error(f"[PFPGNET:LobbyClient#{self.__cid}] Failed to receive packet from LobbyServer. Resetting connection.")
                 self.reset_connection()
                 raise socket.error
@@ -156,7 +156,27 @@ class LobbyClient:
     """
     def close(self):
         self.__sendpkt(NetMessage.CLIENT_DISCONNECT, b"")
+        print("CLOSE")
         self.__server.close()
+
+
+    """
+    Request a search a peer
+    """
+    def find_partner(self) -> tuple:
+        self.__sendpkt(NetMessage.CLIENT_SEARCH, b"")
+        while True:
+            pkt_type, pkt_data = self.__recvpkt()
+            if pkt_type == -1:
+                continue
+            elif pkt_type == NetMessage.SERVER_FOUND:
+                server_addr = socket.inet_ntoa(pkt_data[0:4])
+                server_port = struct.unpack("<H", pkt_data[4:6])[0]
+                return server_addr, server_port, pkt_data[6:]
+            elif pkt_type == NetMessage.SERVER_DISCONNECT:
+                print("CLOSE")
+                self.close()
+                return None, None, None
 
 
     """
