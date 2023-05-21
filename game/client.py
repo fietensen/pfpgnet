@@ -45,11 +45,11 @@ class GameClient(threading.Thread):
 
 
     def send_keydown(self, keycode):
-        self.__sendpkt(NetMessage.KEYDOWN, struct.pack("<H", keycode))
+        self.__sendpkt(NetMessage.KEYDOWN, struct.pack("<I", keycode))
     
 
     def send_keyup(self, keycode):
-        self.__sendpkt(NetMessage.KEYUP, struct.pack("<H", keycode))
+        self.__sendpkt(NetMessage.KEYUP, struct.pack("<I", keycode))
 
 
     def newest_keyevents(self):
@@ -108,11 +108,11 @@ class GameClient(threading.Thread):
                 self.latency = round((time.time()-self.__latency_time)*1000/2)
             case NetMessage.KEYDOWN:
                 self.remote_input_queue.put((
-                    pygame.KEYDOWN, self.remote_input_clock.tick()-self.latency, struct.unpack("<H", pkt_data[0:2])[0]
+                    pygame.KEYDOWN, self.remote_input_clock.tick()-self.latency, struct.unpack("<I", pkt_data[0:4])[0]
                 ))
             case NetMessage.KEYUP:
                 self.remote_input_queue.put((
-                    pygame.KEYUP, self.remote_input_clock.tick()-self.latency, struct.unpack("<H", pkt_data[0:2])[0]
+                    pygame.KEYUP, self.remote_input_clock.tick()-self.latency, struct.unpack("<I", pkt_data[0:4])[0]
                 ))
             case _:
                 pass
