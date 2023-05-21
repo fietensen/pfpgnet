@@ -7,7 +7,7 @@ import pygame
 import queue
 
 class GameClient(threading.Thread):
-    def __init__(self, address:str, port:int):
+    def __init__(self, address:str, port:int, latency_tps: int=10):
         self.__client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.__address = address
         self.__port = port
@@ -19,7 +19,8 @@ class GameClient(threading.Thread):
         self.__latency_wait = False
         self.latency = 0
         self.running = False
-        self.latency_refreshrate = 5
+        self.latency_tps = latency_tps
+        self.__latency_clock = pygame.time.Clock()
 
         self.remote_input_queue = queue.Queue()
         self.remote_input_clock = pygame.time.Clock()
@@ -39,7 +40,7 @@ class GameClient(threading.Thread):
         if not self.connected or self.__latency_wait:
             return
         
-        self.__latency_time = time.time()
+        self.__latency_time = pygame.time.get_ticks()
         self.__latency_wait = True
         self.__sendpkt(NetMessage.CHECK_DELAY, b"")
 
@@ -78,7 +79,7 @@ class GameClient(threading.Thread):
 
         # for latency checking
         if pkt_type == NetMessage.ANSWER_DELAY:
-            self.latency = round((time.time()-self.__latency_time)*1000/2)
+            self.latency = (pygame.time.get_ticks()-self.__latency_time)/2
             self.__latency_wait = False
         
         return pkt_type, pkt_data
@@ -104,7 +105,7 @@ class GameClient(threading.Thread):
                 self.__sendpkt(NetMessage.ANSWER_DELAY, b"")
             case NetMessage.ANSWER_DELAY:
                 self.__latency_wait = False
-                self.latency = round((time.time()-self.__latency_time)*1000/2)
+                self.latency = (pygame.time.get_ticks()-self.__latency_time)/2
             case NetMessage.KEYDOWN:
                 self.remote_input_queue.put((
                     pygame.KEYDOWN, self.latency, struct.unpack("<I", pkt_data[0:4])[0]
@@ -119,8 +120,9 @@ class GameClient(threading.Thread):
 
     def check_latency(self):
         while self.running:
-            self.inquire_latency()
-            time.sleep(self.latency_refreshrate)
+            self.__latency_clock.tick(self.latency_tps)
+            if not self.__latency_wait:
+                self.inquire_latency()
 
 
     def start_latency_check(self):
