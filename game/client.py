@@ -3,6 +3,8 @@ import threading
 import socket
 import struct
 import time
+import pygame
+import queue
 
 class GameClient(threading.Thread):
     def __init__(self, address:str, port:int):
@@ -17,6 +19,10 @@ class GameClient(threading.Thread):
         self.__latency_wait = False
         self.latency = 0
         self.running = False
+        self.latency_refreshrate = 5
+
+        self.remote_input_queue = queue.Queue()
+        self.remote_input_clock = pygame.time.Clock()
 
         super().__init__(daemon=True)
     
@@ -36,6 +42,20 @@ class GameClient(threading.Thread):
         self.__latency_time = time.time()
         self.__latency_wait = True
         self.__sendpkt(NetMessage.CHECK_DELAY, b"")
+
+
+    def send_keydown(self, keycode):
+        self.__sendpkt(NetMessage.KEYDOWN, struct.pack("<H", keycode))
+    
+
+    def send_keyup(self, keycode):
+        self.__sendpkt(NetMessage.KEYUP, struct.pack("<H", keycode))
+
+
+    def newest_keyevents(self):
+        while not self.remote_input_queue.empty():
+            action, time_at, keycode = self.remote_input_queue.get()
+            yield action, time_at, keycode
 
 
     """
@@ -72,10 +92,42 @@ class GameClient(threading.Thread):
         self.__peer_port = struct.unpack("<H",connection_data[4:6])[0]
 
         self.__sendpkt(NetMessage.HELLO, b"")
-        self.__recvpkt()
-        self.__sendpkt(NetMessage.ACK, b"")
-        self.__recvpkt()
     
+
+    def handle_packet(self):
+        pkt_type, pkt_data = self.__recvpkt()
+
+        match pkt_type:
+            case NetMessage.HELLO:
+                self.__sendpkt(NetMessage.ACK, b"")
+            case NetMessage.CHECK_DELAY:
+                self.__sendpkt(NetMessage.ANSWER_DELAY, b"")
+            case NetMessage.ANSWER_DELAY:
+                self.__latency_wait = False
+                print(time.time()-self.__latency_time)
+                self.latency = round((time.time()-self.__latency_time)*1000/2)
+            case NetMessage.KEYDOWN:
+                self.remote_input_queue.put((
+                    pygame.KEYDOWN, self.remote_input_clock.tick()-self.latency, struct.unpack("<H", pkt_data[0:2])[0]
+                ))
+            case NetMessage.KEYUP:
+                self.remote_input_queue.put((
+                    pygame.KEYUP, self.remote_input_clock.tick()-self.latency, struct.unpack("<H", pkt_data[0:2])[0]
+                ))
+            case _:
+                pass
+
+
+    def check_latency(self):
+        while self.running:
+            self.inquire_latency()
+            time.sleep(self.latency_refreshrate)
+            print(f"Latency: {self.latency}ms")
+
+
+    def start_latency_check(self):
+        threading.Thread(target=self.check_latency, daemon=True).start()
+
 
     def run(self):
         if not self.connected:
@@ -83,8 +135,4 @@ class GameClient(threading.Thread):
         
         self.running = True
         while self.running:
-            self.inquire_latency()
-            print("Latency:", self.latency,"ms")
-            pkt_type, pkt_data = self.__recvpkt()
-            if pkt_type == NetMessage.CHECK_DELAY:
-                self.__sendpkt(NetMessage.ANSWER_DELAY, b"")
+            self.handle_packet()
