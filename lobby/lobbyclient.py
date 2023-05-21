@@ -146,6 +146,7 @@ class LobbyClient:
             self.__connected = True
             self.__log(f"[PFPGNET:LobbyClient#{self.__cid}] Connected to LobbyServer@{self.__address}:{self.__port}")
             self.__authenticate()
+            return True
         except socket.error:
             self.__error(f"[PFPGNET:LobbyClient#{self.__cid}] Failed to connect to LobbyServer@{self.__address}:{self.__port}")
             return False
@@ -156,7 +157,6 @@ class LobbyClient:
     """
     def close(self):
         self.__sendpkt(NetMessage.CLIENT_DISCONNECT, b"")
-        print("CLOSE")
         self.__server.close()
 
 
@@ -174,7 +174,6 @@ class LobbyClient:
                 server_port = struct.unpack("<H", pkt_data[4:6])[0]
                 return server_addr, server_port, pkt_data[6:]
             elif pkt_type == NetMessage.SERVER_DISCONNECT:
-                print("CLOSE")
                 self.close()
                 return None, None, None
 
