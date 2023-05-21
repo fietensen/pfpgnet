@@ -1,5 +1,5 @@
-from lobby.messages import NetMessage, VERSION
-from lobby._serverclient import ServerClient
+from pfpgnet.lobby.messages import NetMessage, VERSION
+from pfpgnet.lobby._serverclient import ServerClient
 import socket
 import sys
 import struct

@@ -1,4 +1,4 @@
-from lobby.messages import NetMessage, VERSION
+from pfpgnet.lobby.messages import NetMessage, VERSION
 import socket
 import sys
 import struct

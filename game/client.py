@@ -1,4 +1,4 @@
-from game.messages import NetMessage
+from pfpgnet.game.messages import NetMessage
 import threading
 import socket
 import struct
